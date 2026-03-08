@@ -1,63 +1,84 @@
 import streamlit as st
 import pandas as pd
 import matplotlib.pyplot as plt
-from openai import OpenAI
+import requests
 
 st.title("AI Insight Dashboard")
 
 st.write("Upload Excel or CSV dataset to generate charts and AI insights.")
 
-uploaded_file = st.file_uploader("Upload dataset", type=["csv","xlsx"])
+uploaded_file = st.file_uploader("Upload dataset", type=["csv", "xlsx"])
 
 if uploaded_file:
 
-    # Load data
-    if uploaded_file.name.endswith(".csv"):
-        df = pd.read_csv(uploaded_file)
-    else:
-        df = pd.read_excel(uploaded_file)
+    try:
 
-    st.subheader("Dataset Preview")
-    st.dataframe(df.head())
+        # Load dataset
+        if uploaded_file.name.endswith(".csv"):
+            df = pd.read_csv(uploaded_file)
+        else:
+            df = pd.read_excel(uploaded_file)
 
-    # Detect numeric columns
-    numeric_cols = df.select_dtypes(include=['number']).columns
+        st.subheader("Dataset Preview")
+        st.dataframe(df.head())
 
-    if len(numeric_cols) > 0:
+        # Detect numeric columns
+        numeric_cols = df.select_dtypes(include=['number']).columns
 
-        st.subheader("Automatic Data Visualization")
+        if len(numeric_cols) > 0:
 
-        for col in numeric_cols:
+            st.subheader("Automatic Charts")
 
-            fig, ax = plt.subplots()
-            df[col].plot(kind="line", ax=ax)
-            ax.set_title(f"{col} Trend")
+            for col in numeric_cols:
 
-            st.pyplot(fig)
+                fig, ax = plt.subplots()
+                df[col].plot(kind="line", ax=ax)
+                ax.set_title(f"{col} Trend")
 
-    if st.button("Generate AI Insights"):
+                st.pyplot(fig)
 
-        client = OpenAI(api_key=st.secrets["OPENAI_API_KEY"])
+        if st.button("Generate AI Insights"):
 
-        dataset_sample = df.head(20).to_string()
+            try:
 
-        prompt = f"""
-        Analyze the dataset below and provide business insights.
+                dataset_sample = df.head(20).to_string()
 
-        Dataset:
-        {dataset_sample}
+                prompt = f"""
+                Analyze the dataset below and provide business insights.
 
-        Provide:
-        1. Key insights
-        2. Trends in the data
-        3. Recommendations
-        """
+                Dataset:
+                {dataset_sample}
 
-        response = client.chat.completions.create(
-            model="gpt-4o-mini",
-            messages=[{"role":"user","content":prompt}]
-        )
+                Provide:
+                1. Key insights
+                2. Trends in the data
+                3. Business recommendations
+                """
 
-        st.subheader("AI Analysis")
+                url = "https://api.groq.com/openai/v1/chat/completions"
 
-        st.write(response.choices[0].message.content)
+                headers = {
+                    "Authorization": f"Bearer {st.secrets['GROQ_API_KEY']}",
+                    "Content-Type": "application/json"
+                }
+
+                data = {
+                    "model": "llama3-8b-8192",
+                    "messages": [
+                        {"role": "user", "content": prompt}
+                    ]
+                }
+
+                response = requests.post(url, headers=headers, json=data)
+
+                result = response.json()
+
+                st.subheader("AI Analysis")
+
+                st.write(result["choices"][0]["message"]["content"])
+
+            except Exception:
+                st.error("AI service temporarily unavailable. Please try again later.")
+
+    except Exception:
+        st.error("Unable to process this dataset. Please upload a valid Excel or CSV file.")
