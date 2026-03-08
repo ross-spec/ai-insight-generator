@@ -1,9 +1,10 @@
 import streamlit as st
 import pandas as pd
+from openai import OpenAI
 
 st.title("AI Insight Generator")
 
-st.write("Upload your Excel or CSV dataset and get insights.")
+st.write("Upload your Excel or CSV dataset and get AI-generated insights.")
 
 uploaded_file = st.file_uploader("Upload dataset", type=["csv","xlsx"])
 
@@ -19,8 +20,27 @@ if uploaded_file:
 
     if st.button("Generate Insights"):
 
-        st.subheader("Insights")
+        client = OpenAI(api_key=st.secrets["OPENAI_API_KEY"])
 
-        st.write("• Identify trends in your dataset")
-        st.write("• Analyze top performing categories")
-        st.write("• Check seasonal patterns")
+        dataset_sample = df.head(20).to_string()
+
+        prompt = f"""
+        Analyze the dataset below and provide business insights.
+
+        Dataset:
+        {dataset_sample}
+
+        Provide:
+        1. Key insights
+        2. Patterns or trends
+        3. Recommendations
+        """
+
+        response = client.chat.completions.create(
+            model="gpt-4o-mini",
+            messages=[{"role": "user", "content": prompt}]
+        )
+
+        st.subheader("AI Insights")
+
+        st.write(response.choices[0].message.content)
