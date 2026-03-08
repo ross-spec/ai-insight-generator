@@ -1,24 +1,41 @@
 import streamlit as st
 import pandas as pd
+import matplotlib.pyplot as plt
 from openai import OpenAI
 
-st.title("AI Insight Generator")
+st.title("AI Insight Dashboard")
 
-st.write("Upload your Excel or CSV dataset and get AI-generated insights.")
+st.write("Upload Excel or CSV dataset to generate charts and AI insights.")
 
 uploaded_file = st.file_uploader("Upload dataset", type=["csv","xlsx"])
 
 if uploaded_file:
 
+    # Load data
     if uploaded_file.name.endswith(".csv"):
         df = pd.read_csv(uploaded_file)
     else:
         df = pd.read_excel(uploaded_file)
 
-    st.write("Dataset Preview")
+    st.subheader("Dataset Preview")
     st.dataframe(df.head())
 
-    if st.button("Generate Insights"):
+    # Detect numeric columns
+    numeric_cols = df.select_dtypes(include=['number']).columns
+
+    if len(numeric_cols) > 0:
+
+        st.subheader("Automatic Data Visualization")
+
+        for col in numeric_cols:
+
+            fig, ax = plt.subplots()
+            df[col].plot(kind="line", ax=ax)
+            ax.set_title(f"{col} Trend")
+
+            st.pyplot(fig)
+
+    if st.button("Generate AI Insights"):
 
         client = OpenAI(api_key=st.secrets["OPENAI_API_KEY"])
 
@@ -32,15 +49,15 @@ if uploaded_file:
 
         Provide:
         1. Key insights
-        2. Patterns or trends
+        2. Trends in the data
         3. Recommendations
         """
 
         response = client.chat.completions.create(
             model="gpt-4o-mini",
-            messages=[{"role": "user", "content": prompt}]
+            messages=[{"role":"user","content":prompt}]
         )
 
-        st.subheader("AI Insights")
+        st.subheader("AI Analysis")
 
         st.write(response.choices[0].message.content)
