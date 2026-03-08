@@ -5,9 +5,9 @@ import requests
 
 st.title("AI Insight Dashboard")
 
-st.write("Upload Excel or CSV dataset to generate charts and AI insights.")
+st.write("Upload Excel or CSV dataset to generate charts, insights, and chat with your data.")
 
-uploaded_file = st.file_uploader("Upload dataset", type=["csv", "xlsx"])
+uploaded_file = st.file_uploader("Upload dataset", type=["csv","xlsx"])
 
 if uploaded_file:
 
@@ -30,13 +30,12 @@ if uploaded_file:
             st.subheader("Automatic Charts")
 
             for col in numeric_cols:
-
                 fig, ax = plt.subplots()
                 df[col].plot(kind="line", ax=ax)
                 ax.set_title(f"{col} Trend")
-
                 st.pyplot(fig)
 
+        # ---------- AI Insight Generator ----------
         if st.button("Generate AI Insights"):
 
             try:
@@ -51,8 +50,8 @@ if uploaded_file:
 
                 Provide:
                 1. Key insights
-                2. Trends in the data
-                3. Business recommendations
+                2. Trends
+                3. Recommendations
                 """
 
                 url = "https://api.groq.com/openai/v1/chat/completions"
@@ -70,15 +69,59 @@ if uploaded_file:
                 }
 
                 response = requests.post(url, headers=headers, json=data)
-
                 result = response.json()
 
-                st.subheader("AI Analysis")
-
+                st.subheader("AI Insights")
                 st.write(result["choices"][0]["message"]["content"])
 
             except Exception:
-                st.error("AI service temporarily unavailable. Please try again later.")
+                st.error("AI service temporarily unavailable.")
+
+        # ---------- CHAT WITH DATA ----------
+        st.subheader("Ask Questions About Your Dataset")
+
+        user_question = st.text_input("Ask a question about your data")
+
+        if st.button("Ask AI") and user_question:
+
+            try:
+
+                dataset_sample = df.head(30).to_string()
+
+                chat_prompt = f"""
+                You are a data analyst.
+
+                Dataset:
+                {dataset_sample}
+
+                User Question:
+                {user_question}
+
+                Answer clearly based on the dataset.
+                """
+
+                url = "https://api.groq.com/openai/v1/chat/completions"
+
+                headers = {
+                    "Authorization": f"Bearer {st.secrets['GROQ_API_KEY']}",
+                    "Content-Type": "application/json"
+                }
+
+                data = {
+                    "model": "llama3-8b-8192",
+                    "messages": [
+                        {"role": "user", "content": chat_prompt}
+                    ]
+                }
+
+                response = requests.post(url, headers=headers, json=data)
+                result = response.json()
+
+                st.subheader("AI Answer")
+                st.write(result["choices"][0]["message"]["content"])
+
+            except Exception:
+                st.error("AI service temporarily unavailable.")
 
     except Exception:
-        st.error("Unable to process this dataset. Please upload a valid Excel or CSV file.")
+        st.error("Unable to process this dataset. Please upload a valid file.")
