@@ -23,7 +23,7 @@ def generate_ai_response(prompt):
     }
 
     data = {
-        "model": "mistralai/mistral-7b-instruct",
+        "model": "meta-llama/llama-3.1-8b-instruct:free",
         "messages": [
             {"role": "user", "content": prompt}
         ]
