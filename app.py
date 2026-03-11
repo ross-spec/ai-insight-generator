@@ -1,6 +1,6 @@
 import streamlit as st
 import pandas as pd
-import google.generativeai as genai
+import requests
 
 st.set_page_config(
     page_title="InsightPilot AI",
@@ -8,31 +8,35 @@ st.set_page_config(
     layout="wide"
 )
 
-# Styling
-st.markdown("""
-<style>
-.main {
-    background-color: #0f172a;
-}
-h1,h2,h3 {
-    color:white;
-}
-.stButton>button {
-    background-color:#6366f1;
-    color:white;
-    border-radius:8px;
-}
-</style>
-""", unsafe_allow_html=True)
-
-# Configure Gemini
-genai.configure(api_key=st.secrets["GEMINI_API_KEY"])
-model = genai.GenerativeModel("gemini-pro")
-
 st.title("📊 InsightPilot AI")
-st.write("Upload Excel or CSV to generate AI insights.")
+st.write("Upload Excel or CSV data to generate AI insights.")
 
 uploaded_file = st.file_uploader("Upload dataset", type=["csv","xlsx"])
+
+def generate_ai_response(prompt):
+
+    url = "https://openrouter.ai/api/v1/chat/completions"
+
+    headers = {
+        "Authorization": f"Bearer {st.secrets['OPENROUTER_API_KEY']}",
+        "Content-Type": "application/json"
+    }
+
+    data = {
+        "model": "mistralai/mistral-7b-instruct",
+        "messages": [
+            {"role": "user", "content": prompt}
+        ]
+    }
+
+    response = requests.post(url, headers=headers, json=data)
+
+    if response.status_code == 200:
+        result = response.json()
+        return result["choices"][0]["message"]["content"]
+    else:
+        return f"API Error: {response.text}"
+
 
 if uploaded_file:
 
@@ -46,8 +50,7 @@ if uploaded_file:
         st.subheader("Dataset Preview")
         st.dataframe(df.head())
 
-        # KPI metrics
-        col1,col2,col3 = st.columns(3)
+        col1, col2, col3 = st.columns(3)
 
         col1.metric("Rows", len(df))
         col2.metric("Columns", len(df.columns))
@@ -56,80 +59,57 @@ if uploaded_file:
             len(df.select_dtypes(include="number").columns)
         )
 
-        # Dataset statistics
-        numeric_df = df.select_dtypes(include="number")
+        st.subheader("Dataset Summary")
 
-        if not numeric_df.empty:
+        summary = df.describe(include="all")
+        st.dataframe(summary)
 
-            st.subheader("Numeric Summary")
-
-            st.dataframe(numeric_df.describe())
-
-        # AI Insights
         if st.button("Generate AI Insights"):
 
-            summary = df.describe(include="all").to_string()
-
-            columns = ", ".join(df.columns)
-
             prompt = f"""
-            You are a professional data analyst.
+            You are a data analyst.
 
-            Dataset Columns:
-            {columns}
-
-            Dataset Summary Statistics:
-            {summary}
+            Dataset summary:
+            {summary.to_string()}
 
             Provide:
-
-            1. Key insights
-            2. Important patterns
-            3. Business recommendations
-            4. Possible anomalies in the dataset
+            - Key insights
+            - Trends
+            - Business recommendations
             """
 
-            try:
+            insights = generate_ai_response(prompt)
 
-                response = model.generate_content(prompt)
+            st.subheader("AI Insights")
 
-                st.subheader("AI Insights")
+            st.write(insights)
 
-                st.write(response.text)
+        st.subheader("Ask Questions About Your Data")
 
-            except Exception as e:
+        user_question = st.text_input("Enter your question")
 
-                st.error(f"AI error: {e}")
-
-        # Chat with data
-        st.subheader("Chat With Your Dataset")
-
-        question = st.text_input("Ask a question about the data")
-
-        if st.button("Ask AI") and question:
-
-            summary = df.describe(include="all").to_string()
+        if st.button("Ask AI") and user_question:
 
             prompt = f"""
-            Dataset Summary:
-            {summary}
+            Dataset summary:
+            {summary.to_string()}
 
-            User Question:
-            {question}
+            User question:
+            {user_question}
 
-            Answer based on dataset.
+            Answer based on the dataset.
             """
 
-            try:
+            answer = generate_ai_response(prompt)
 
-                response = model.generate_content(prompt)
+            st.subheader("AI Answer")
 
-                st.write(response.text)
-
-            except Exception as e:
-
-                st.error(f"AI error: {e}")
+            st.write(answer)
 
     except Exception as e:
 
         st.error(f"Error processing dataset: {e}")
+
+else:
+
+    st.info("Upload a dataset to start analysis.")
