@@ -2,100 +2,94 @@ import streamlit as st
 import pandas as pd
 import google.generativeai as genai
 
-# Page configuration
 st.set_page_config(
     page_title="InsightPilot AI",
     page_icon="📊",
     layout="wide"
 )
 
-# Custom styling
+# Styling
 st.markdown("""
 <style>
-
 .main {
     background-color: #0f172a;
 }
-
-h1, h2, h3 {
-    color: white;
+h1,h2,h3 {
+    color:white;
 }
-
 .stButton>button {
-    background-color: #6366f1;
-    color: white;
-    border-radius: 8px;
-    padding: 10px 20px;
+    background-color:#6366f1;
+    color:white;
+    border-radius:8px;
 }
-
 </style>
 """, unsafe_allow_html=True)
 
 # Configure Gemini
 genai.configure(api_key=st.secrets["GEMINI_API_KEY"])
+model = genai.GenerativeModel("gemini-1.5-flash-latest")
 
-model = genai.GenerativeModel("gemini-1.5-flash")
-
-# Sidebar navigation
-page = st.sidebar.selectbox(
-    "Navigation",
-    ["Dashboard", "AI Insights", "Chat With Data"]
-)
-
-# Header
 st.title("📊 InsightPilot AI")
-st.write("Turn your Excel data into smart AI insights.")
+st.write("Upload Excel or CSV to generate AI insights.")
 
-uploaded_file = st.file_uploader("Upload Excel or CSV file", type=["csv", "xlsx"])
+uploaded_file = st.file_uploader("Upload dataset", type=["csv","xlsx"])
 
 if uploaded_file:
 
     try:
 
-        # Load dataset
         if uploaded_file.name.endswith(".csv"):
             df = pd.read_csv(uploaded_file)
         else:
             df = pd.read_excel(uploaded_file)
 
-        # Dashboard Page
-        if page == "Dashboard":
+        st.subheader("Dataset Preview")
+        st.dataframe(df.head())
 
-            st.subheader("Dataset Preview")
-            st.dataframe(df.head())
+        # KPI metrics
+        col1,col2,col3 = st.columns(3)
 
-            st.subheader("Dataset Statistics")
+        col1.metric("Rows", len(df))
+        col2.metric("Columns", len(df.columns))
+        col3.metric(
+            "Numeric Columns",
+            len(df.select_dtypes(include="number").columns)
+        )
 
-            col1, col2, col3 = st.columns(3)
+        # Dataset statistics
+        numeric_df = df.select_dtypes(include="number")
 
-            col1.metric("Rows", len(df))
-            col2.metric("Columns", len(df.columns))
-            col3.metric(
-                "Numeric Fields",
-                len(df.select_dtypes(include='number').columns)
-            )
+        if not numeric_df.empty:
 
-        # AI Insights Page
-        elif page == "AI Insights":
+            st.subheader("Numeric Summary")
 
-            st.subheader("Generate AI Insights")
+            st.dataframe(numeric_df.describe())
 
-            if st.button("Generate Insights"):
+        # AI Insights
+        if st.button("Generate AI Insights"):
 
-                dataset_sample = df.head(25).to_string()
+            summary = df.describe(include="all").to_string()
 
-                prompt = f"""
-                You are a professional data analyst.
+            columns = ", ".join(df.columns)
 
-                Analyze the dataset below and provide:
+            prompt = f"""
+            You are a professional data analyst.
 
-                1. Key insights
-                2. Important trends
-                3. Business recommendations
+            Dataset Columns:
+            {columns}
 
-                Dataset:
-                {dataset_sample}
-                """
+            Dataset Summary Statistics:
+            {summary}
+
+            Provide:
+
+            1. Key insights
+            2. Important patterns
+            3. Business recommendations
+            4. Possible anomalies in the dataset
+            """
+
+            try:
 
                 response = model.generate_content(prompt)
 
@@ -103,37 +97,39 @@ if uploaded_file:
 
                 st.write(response.text)
 
-        # Chat With Data Page
-        elif page == "Chat With Data":
+            except Exception as e:
 
-            st.subheader("Ask Questions About Your Dataset")
+                st.error(f"AI error: {e}")
 
-            question = st.text_input("Ask something about the data")
+        # Chat with data
+        st.subheader("Chat With Your Dataset")
 
-            if st.button("Ask AI") and question:
+        question = st.text_input("Ask a question about the data")
 
-                dataset_sample = df.head(30).to_string()
+        if st.button("Ask AI") and question:
 
-                prompt = f"""
-                Dataset:
-                {dataset_sample}
+            summary = df.describe(include="all").to_string()
 
-                User question:
-                {question}
+            prompt = f"""
+            Dataset Summary:
+            {summary}
 
-                Answer based on the dataset.
-                """
+            User Question:
+            {question}
+
+            Answer based on dataset.
+            """
+
+            try:
 
                 response = model.generate_content(prompt)
 
-                st.subheader("AI Answer")
-
                 st.write(response.text)
+
+            except Exception as e:
+
+                st.error(f"AI error: {e}")
 
     except Exception as e:
 
         st.error(f"Error processing dataset: {e}")
-
-else:
-
-    st.info("Please upload a dataset to begin.")
