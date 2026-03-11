@@ -23,7 +23,7 @@ def generate_ai_response(prompt):
     }
 
     data = {
-        "model": "meta-llama/llama-3.1-8b-instruct:free",
+        "model": "openai/gpt-3.5-turbo",
         "messages": [
             {"role": "user", "content": prompt}
         ]
