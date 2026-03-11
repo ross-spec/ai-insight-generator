@@ -1,11 +1,15 @@
 import streamlit as st
 import pandas as pd
 import matplotlib.pyplot as plt
-import requests
+import google.generativeai as genai
+
+genai.configure(api_key=st.secrets["GEMINI_API_KEY"])
+
+model = genai.GenerativeModel("gemini-1.5-flash")
 
 st.title("AI Insight Dashboard")
 
-st.write("Upload Excel or CSV dataset to generate charts, insights, and chat with your data.")
+st.write("Upload Excel or CSV dataset to generate charts and AI insights.")
 
 uploaded_file = st.file_uploader("Upload dataset", type=["csv","xlsx"])
 
@@ -35,93 +39,55 @@ if uploaded_file:
                 ax.set_title(f"{col} Trend")
                 st.pyplot(fig)
 
-        # ---------- AI Insight Generator ----------
+        # AI Insights
         if st.button("Generate AI Insights"):
 
-            try:
+            dataset_sample = df.head(20).to_string()
 
-                dataset_sample = df.head(20).to_string()
+            prompt = f"""
+            You are a data analyst.
 
-                prompt = f"""
-                Analyze the dataset below and provide business insights.
+            Analyze the dataset below and provide:
 
-                Dataset:
-                {dataset_sample}
+            1. Key insights
+            2. Important trends
+            3. Business recommendations
 
-                Provide:
-                1. Key insights
-                2. Trends
-                3. Recommendations
-                """
+            Dataset:
+            {dataset_sample}
+            """
 
-                url = "https://api.groq.com/openai/v1/chat/completions"
+            response = model.generate_content(prompt)
 
-                headers = {
-                    "Authorization": f"Bearer {st.secrets['GROQ_API_KEY']}",
-                    "Content-Type": "application/json"
-                }
+            st.subheader("AI Insights")
 
-                data = {
-                    "model": "llama3-8b-8192",
-                    "messages": [
-                        {"role": "user", "content": prompt}
-                    ]
-                }
+            st.write(response.text)
 
-                response = requests.post(url, headers=headers, json=data)
-                result = response.json()
-
-                st.subheader("AI Insights")
-                st.write(result["choices"][0]["message"]["content"])
-
-            except Exception:
-                st.error("AI service temporarily unavailable.")
-
-        # ---------- CHAT WITH DATA ----------
+        # Chat with dataset
         st.subheader("Ask Questions About Your Dataset")
 
-        user_question = st.text_input("Ask a question about your data")
+        user_question = st.text_input("Ask something about the data")
 
         if st.button("Ask AI") and user_question:
 
-            try:
+            dataset_sample = df.head(30).to_string()
 
-                dataset_sample = df.head(30).to_string()
+            chat_prompt = f"""
+            Dataset:
+            {dataset_sample}
 
-                chat_prompt = f"""
-                You are a data analyst.
+            User question:
+            {user_question}
 
-                Dataset:
-                {dataset_sample}
+            Answer clearly based on the dataset.
+            """
 
-                User Question:
-                {user_question}
+            response = model.generate_content(chat_prompt)
 
-                Answer clearly based on the dataset.
-                """
+            st.subheader("AI Answer")
 
-                url = "https://api.groq.com/openai/v1/chat/completions"
+            st.write(response.text)
 
-                headers = {
-                    "Authorization": f"Bearer {st.secrets['GROQ_API_KEY']}",
-                    "Content-Type": "application/json"
-                }
+    except Exception as e:
 
-                data = {
-                    "model": "llama3-8b-8192",
-                    "messages": [
-                        {"role": "user", "content": chat_prompt}
-                    ]
-                }
-
-                response = requests.post(url, headers=headers, json=data)
-                result = response.json()
-
-                st.subheader("AI Answer")
-                st.write(result["choices"][0]["message"]["content"])
-
-            except Exception:
-                st.error("AI service temporarily unavailable.")
-
-    except Exception:
-        st.error("Unable to process this dataset. Please upload a valid file.")
+        st.error(f"Error processing dataset: {e}")
