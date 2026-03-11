@@ -27,7 +27,7 @@ h1,h2,h3 {
 
 # Configure Gemini
 genai.configure(api_key=st.secrets["GEMINI_API_KEY"])
-model = genai.GenerativeModel("gemini-1.5-flash-latest")
+model = genai.GenerativeModel("gemini-pro")
 
 st.title("📊 InsightPilot AI")
 st.write("Upload Excel or CSV to generate AI insights.")
